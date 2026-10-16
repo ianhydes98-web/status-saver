@@ -12,35 +12,20 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 
-/**
- * Single source of truth for status media.
- * Designed for reliability across WhatsApp versions and Android 8–15.
- * All heavy work runs on Dispatchers.IO.
- */
 class StatusRepository(private val context: Context) {
 
-    // All known WhatsApp status locations (regular + Business)
     private val possibleStatusDirs: List<File> by lazy {
         val base = Environment.getExternalStorageDirectory()
         listOf(
-            // Classic path (pre-Android 11 / older WhatsApp)
             File(base, "WhatsApp/Media/.Statuses"),
             File(base, "WhatsApp Business/Media/.Statuses"),
-
-            // Modern scoped path (Android 11+)
             File(base, "Android/media/com.whatsapp/WhatsApp/Media/.Statuses"),
             File(base, "Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses"),
-
-            // Some OEM variants
             File(base, "Android/media/com.whatsapp/WhatsApp/Media/Statuses"),
             File(base, "WhatsApp/Media/Statuses")
         )
     }
 
-    /**
-     * Scans all possible directories and returns sorted list (newest first).
-     * Extremely fast — only reads directory listing + basic file metadata.
-     */
     suspend fun getAllStatuses(): List<StatusMedia> = withContext(Dispatchers.IO) {
         val results = mutableListOf<StatusMedia>()
 
@@ -54,7 +39,6 @@ class StatusRepository(private val context: Context) {
             }
         }
 
-        // Newest first, remove duplicates by path
         results
             .distinctBy { it.path }
             .sortedByDescending { it.lastModified }
@@ -67,9 +51,7 @@ class StatusRepository(private val context: Context) {
         getAllStatuses().filter { it.isVideo }
 
     /**
-     * Saves a status to the public Pictures/WhatsApp Statuses folder
-     * using MediaStore (correct & permission-light way on modern Android).
-     * Returns the content Uri on success.
+     * Saves a status to the public Pictures/Status Update folder.
      */
     suspend fun saveToGallery(media: StatusMedia): Result<Uri> = withContext(Dispatchers.IO) {
         try {
@@ -110,9 +92,6 @@ class StatusRepository(private val context: Context) {
         }
     }
 
-    /**
-     * Returns true if at least one WhatsApp status folder is readable.
-     */
     fun hasAccessibleStatusFolder(): Boolean {
         return possibleStatusDirs.any { it.exists() && it.canRead() }
     }
