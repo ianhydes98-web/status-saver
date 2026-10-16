@@ -11,7 +11,7 @@ object Prefs {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun isAutoSaveEnabled(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_AUTO_SAVE, true) // default TRUE
+        prefs(context).getBoolean(KEY_AUTO_SAVE, true)
 
     fun setAutoSaveEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_AUTO_SAVE, enabled).apply()
