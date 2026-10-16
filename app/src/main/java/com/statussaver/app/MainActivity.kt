@@ -19,10 +19,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Restart auto-save service if the user had previously enabled it
-        if (Prefs.isAutoSaveEnabled(this)) {
-            AutoSaveService.start(this)
-        }
+        // Auto-save is ON by default now, so always start the service
+        Prefs.setAutoSaveEnabled(this, true)
+        AutoSaveService.start(this)
 
         setContent {
             StatusSaverTheme {
@@ -34,6 +33,14 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Re-check permission and restart service if granted
+        if (PermissionUtils.hasStoragePermission(this)) {
+            AutoSaveService.start(this)
         }
     }
 }
