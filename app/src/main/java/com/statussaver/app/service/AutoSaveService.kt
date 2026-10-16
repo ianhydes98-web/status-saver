@@ -140,6 +140,8 @@ class AutoSaveService : Service() {
         private const val CHANNEL_ID = "auto_save_channel"
         private const val NOTIFICATION_ID = 1001
 
+        private var isRunning = false
+
         fun start(context: android.content.Context) {
             val intent = Intent(context, AutoSaveService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -147,10 +149,19 @@ class AutoSaveService : Service() {
             } else {
                 context.startService(intent)
             }
+            isRunning = true
+        }
+
+        fun startSafely(context: android.content.Context) {
+            if (isRunning) return
+            try {
+                start(context)
+            } catch (_: Exception) { }
         }
 
         fun stop(context: android.content.Context) {
             context.stopService(Intent(context, AutoSaveService::class.java))
+            isRunning = false
         }
     }
 }
