@@ -18,7 +18,7 @@ data class HomeUiState(
     val isLoading: Boolean = false,
     val hasPermission: Boolean = false,
     val error: String? = null,
-    val selectedTab: Int = 0 // 0 = Images, 1 = Videos
+    val selectedTab: Int = 0
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -42,7 +42,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refresh() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            val hasPerm = PermissionUtils.hasStoragePermission(getApplication())
+            if (!hasPerm) {
+                _uiState.update { it.copy(hasPermission = false, isLoading = false) }
+                return@launch
+            }
+
+            _uiState.update { it.copy(isLoading = true, error = null, hasPermission = true) }
             try {
                 val all = repository.getAllStatuses()
                 _uiState.update {
