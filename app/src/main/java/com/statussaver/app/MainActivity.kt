@@ -20,7 +20,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         Prefs.setAutoSaveEnabled(this, true)
-        AutoSaveService.start(this)
+
+        if (PermissionUtils.hasStoragePermission(this)) {
+            AutoSaveService.start(this)
+        }
 
         setContent {
             StatusSaverTheme {
@@ -38,7 +41,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (PermissionUtils.hasStoragePermission(this)) {
-            AutoSaveService.start(this)
+            AutoSaveService.startSafely(this)
         }
     }
 }
