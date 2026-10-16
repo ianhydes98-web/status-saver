@@ -11,6 +11,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class StatusRepository(private val context: Context) {
 
@@ -50,9 +53,6 @@ class StatusRepository(private val context: Context) {
     suspend fun getVideos(): List<StatusMedia> =
         getAllStatuses().filter { it.isVideo }
 
-    /**
-     * Saves a status to the public Pictures/Status Update folder.
-     */
     suspend fun saveToGallery(media: StatusMedia): Result<Uri> = withContext(Dispatchers.IO) {
         try {
             val resolver = context.contentResolver
@@ -62,8 +62,13 @@ class StatusRepository(private val context: Context) {
                 MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
             }
 
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val extension = media.name.substringAfterLast('.', "jpg")
+            val baseName = media.name.substringBeforeLast('.', media.name)
+            val uniqueName = "${baseName}_${timestamp}.${extension}"
+
             val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, media.name)
+                put(MediaStore.MediaColumns.DISPLAY_NAME, uniqueName)
                 put(MediaStore.MediaColumns.MIME_TYPE, if (media.isVideo) "video/mp4" else "image/jpeg")
                 put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/Status Update")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
