@@ -12,7 +12,6 @@ import android.os.FileObserver
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.statussaver.app.MainActivity
-import com.statussaver.app.R
 import com.statussaver.app.data.model.StatusMedia
 import com.statussaver.app.data.repository.StatusRepository
 import com.statussaver.app.util.Prefs
@@ -23,20 +22,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.File
 
-/**
- * Lightweight foreground service that watches WhatsApp .Statuses folders
- * and automatically saves new media the moment they appear.
- *
- * Uses FileObserver for near-instant detection.
- */
 class AutoSaveService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val repository by lazy { StatusRepository(this) }
     private val observers = mutableListOf<FileObserver>()
-
-    // Already-saved paths in this session (prevents double-saving)
-    private val savedInSession = mutableSetOf<String>()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -53,24 +43,27 @@ class AutoSaveService : Service() {
     }
 
     private fun startWatching() {
-        stopWatching() // clear any previous
+        stopWatching()
 
         val dirs = getStatusDirectories()
         for (dir in dirs) {
-            if (!dir.exists()) dir.mkdirs() // just in case
+            if (!dir.exists()) continue
 
-            val observer = object : FileObserver(dir.absolutePath, CREATE or MOVED_TO) {
+            val observer = object : FileObserver(dir.absolutePath, CREATE or MOVED_TO or CLOSE_WRITE) {
                 override fun onEvent(event: Int, path: String?) {
                     if (path == null) return
                     val file = File(dir, path)
                     if (!file.isFile || file.length() == 0L) return
 
-                    // Small delay so the file is fully written
                     serviceScope.launch {
                         try {
-                            Thread.sleep(600) // WhatsApp sometimes writes in chunks
+                            Thread.sleep(800)
                             if (file.exists() && file.length() > 0) {
-                                handleNewFile(file)
+                                val media = StatusMedia.fromFile(file) ?: return@launch
+                                val result = repository.saveToGallery(media)
+                                if (result.isSuccess) {
+                                    updateNotification("Saved: ${media.name}")
+                                }
                             }
                         } catch (_: Exception) { }
                     }
@@ -78,21 +71,6 @@ class AutoSaveService : Service() {
             }
             observer.startWatching()
             observers.add(observer)
-        }
-    }
-
-    private fun handleNewFile(file: File) {
-        val path = file.absolutePath
-        if (path in savedInSession) return
-
-        val media = StatusMedia.fromFile(file) ?: return
-
-        serviceScope.launch {
-            val result = repository.saveToGallery(media)
-            if (result.isSuccess) {
-                savedInSession.add(path)
-                updateNotification("Saved: ${media.name}")
-            }
         }
     }
 
@@ -123,7 +101,7 @@ class AutoSaveService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Status Saver – Auto Save")
             .setContentText(contentText)
-            .setSmallIcon(android.R.drawable.ic_menu_save) // system icon, zero extra resources
+            .setSmallIcon(android.R.drawable.ic_menu_save)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setSilent(true)
