@@ -3,7 +3,6 @@ package com.statussaver.app.ui.screens.grid
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -88,7 +87,6 @@ fun GridScreen(
         loadItems()
     }
 
-    // Handle system back
     BackHandler(enabled = true) {
         if (selectionMode) {
             selectionMode = false
@@ -278,11 +276,7 @@ private fun IconCircleButton(
         shape = RoundedCornerShape(999.dp),
         modifier = Modifier
             .size(40.dp)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
-            )
+            .clickable(onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
@@ -309,12 +303,7 @@ private fun ActionButton(
         shape = RoundedCornerShape(18.dp),
         modifier = modifier
             .height(56.dp)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                enabled = enabled,
-                onClick = onClick
-            )
+            .clickable(enabled = enabled, onClick = onClick)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
