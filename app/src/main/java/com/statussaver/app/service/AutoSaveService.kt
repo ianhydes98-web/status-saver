@@ -49,17 +49,21 @@ class AutoSaveService : Service() {
         for (dir in dirs) {
             if (!dir.exists()) continue
 
+            // Listen to CREATE, MOVED_TO, and CLOSE_WRITE (which triggers when WhatsApp finishes saving the image/video)
             val observer = object : FileObserver(dir.absolutePath, CREATE or MOVED_TO or CLOSE_WRITE) {
                 override fun onEvent(event: Int, path: String?) {
                     if (path == null) return
                     if (!Prefs.isAutoSaveEnabled(this@AutoSaveService)) return
                     val file = File(dir, path)
-                    if (!file.isFile || file.length() == 0L) return
+                    
+                    // Ignore hidden files and tiny temporary files
+                    if (file.name.startsWith(".") || !file.isFile || file.length() < 100) return
 
                     serviceScope.launch {
                         try {
-                            Thread.sleep(800)
-                            if (file.exists() && file.length() > 0) {
+                            // Reduced delay from 800ms to 200ms to catch images faster
+                            Thread.sleep(200) 
+                            if (file.exists() && file.length() > 100) {
                                 val media = StatusMedia.fromFile(file) ?: return@launch
                                 val result = repository.saveToGallery(media)
                                 if (result.isSuccess) {
@@ -100,7 +104,7 @@ class AutoSaveService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Status Saver – Auto Save")
+            .setContentTitle("WAE – Auto Save")
             .setContentText(contentText)
             .setSmallIcon(android.R.drawable.ic_menu_save)
             .setContentIntent(pendingIntent)
