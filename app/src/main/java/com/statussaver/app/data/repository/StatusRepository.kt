@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.statussaver.app.data.local.BlacklistStore
 import com.statussaver.app.data.model.StatusMedia
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -29,7 +30,13 @@ class StatusRepository(private val context: Context) {
         )
     }
 
+    private fun galleryDir(): File {
+        val pictures = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+        return File(pictures, "Status Update")
+    }
+
     suspend fun getAllStatuses(): List<StatusMedia> = withContext(Dispatchers.IO) {
+        val blacklist = BlacklistStore.getAll(context)
         val results = mutableListOf<StatusMedia>()
 
         for (dir in possibleStatusDirs) {
@@ -37,6 +44,7 @@ class StatusRepository(private val context: Context) {
 
             dir.listFiles()?.forEach { file ->
                 if (file.isFile && file.canRead() && file.length() > 0) {
+                    if (file.absolutePath in blacklist) return@forEach
                     StatusMedia.fromFile(file)?.let { results.add(it) }
                 }
             }
@@ -95,6 +103,72 @@ class StatusRepository(private val context: Context) {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /**
+     * Deletes a file from Pictures/Status Update using MediaStore.
+     * The original file in WhatsApp's .Statuses folder is NOT touched.
+     */
+    suspend fun deleteFromGallery(media: StatusMedia): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val resolver = context.contentResolver
+            val collection = if (media.isVideo) {
+                MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            } else {
+                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            }
+
+            // Find the Gallery copy by display name
+            val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME)
+            val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?"
+            val baseName = media.name.substringBeforeLast('.', media.name)
+            val selectionArgs = arrayOf("$baseName%")
+
+            resolver.query(collection, projection, selection, selectionArgs, null)?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idCol)
+                    val uri = android.content.ContentUris.withAppendedId(collection, id)
+                    resolver.delete(uri, null, null)
+                }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Adds a path to the blacklist so the app hides it permanently.
+     */
+    fun hideFromApp(path: String) {
+        BlacklistStore.add(context, path)
+    }
+
+    fun hideAllFromApp(paths: Collection<String>) {
+        BlacklistStore.addAll(context, paths)
+    }
+
+    /**
+     * Clears the app's internal cache folder. Does not touch the Gallery or WhatsApp files.
+     */
+    fun clearAppCache(): Long {
+        val cacheDir = context.cacheDir
+        var bytes = 0L
+        cacheDir.listFiles()?.forEach { file ->
+            bytes += file.length()
+            file.deleteRecursively()
+        }
+        return bytes
+    }
+
+    fun getCacheSize(): Long {
+        val cacheDir = context.cacheDir
+        var bytes = 0L
+        cacheDir.listFiles()?.forEach { file ->
+            bytes += file.length()
+        }
+        return bytes
     }
 
     fun hasAccessibleStatusFolder(): Boolean {
