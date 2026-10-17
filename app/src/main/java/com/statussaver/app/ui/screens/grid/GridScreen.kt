@@ -8,11 +8,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -72,6 +75,13 @@ fun GridScreen(
     var selectedPaths by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
+    // THE FIX: Automatically exit selection mode if nothing is selected
+    LaunchedEffect(selectedPaths) {
+        if (selectedPaths.isEmpty() && selectionMode) {
+            selectionMode = false
+        }
+    }
+
     fun loadItems() {
         scope.launch {
             isLoading = true
@@ -100,10 +110,11 @@ fun GridScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
+            .windowInsetsPadding(WindowInsets.systemBars) // Fix for Safe Area
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
 
             Row(
                 modifier = Modifier
