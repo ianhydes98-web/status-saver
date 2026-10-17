@@ -1,8 +1,8 @@
 package com.statussaver.app.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +33,7 @@ import com.statussaver.app.data.model.StatusMedia
 import com.statussaver.app.ui.theme.PrimaryButton
 import com.statussaver.app.ui.theme.PrimaryButtonText
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun StatusGrid(
     items: List<StatusMedia>,
@@ -60,6 +60,7 @@ fun StatusGrid(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun StatusThumbnail(
     media: StatusMedia,
@@ -73,16 +74,11 @@ private fun StatusThumbnail(
     Box(
         modifier = Modifier
             .padding(3.dp)
-            .aspectRatio(9f / 16f) // 9:16 tall thumbnail
+            .aspectRatio(9f / 16f)
             .clip(RoundedCornerShape(14.dp))
             .background(Color.Black)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    if (selectionMode) onClick()
-                    else onClick()
-                },
+            .combinedClickable(
+                onClick = onClick,
                 onLongClick = onLongClick
             )
     ) {
@@ -105,7 +101,6 @@ private fun StatusThumbnail(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Play icon center
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -129,7 +124,6 @@ private fun StatusThumbnail(
             )
         }
 
-        // Selection overlay
         if (selectionMode) {
             if (isSelected) {
                 Box(
@@ -159,14 +153,7 @@ private fun StatusThumbnail(
                         .padding(8.dp)
                         .size(24.dp)
                         .background(Color.Black.copy(alpha = 0.35f), shape = CircleShape)
-                        .clip(CircleShape)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                    )
-                }
+                )
             }
         }
     }
