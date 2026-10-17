@@ -1,125 +1,180 @@
 package com.statussaver.app.ui.screens.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.statussaver.app.data.model.StatusMedia
-import com.statussaver.app.ui.components.EmptyState
-import com.statussaver.app.ui.components.StatusGrid
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.statussaver.app.data.repository.StatusRepository
+import com.statussaver.app.ui.components.HomeTile
+import com.statussaver.app.ui.theme.Background
+import com.statussaver.app.ui.theme.PrimaryButton
+import com.statussaver.app.ui.theme.Surface
+import com.statussaver.app.ui.theme.TextPrimary
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onMediaClick: (StatusMedia) -> Unit,
-    onSettingsClick: () -> Unit,
-    onRequestPermission: () -> Unit,
-    viewModel: HomeViewModel = viewModel()
+    onOpenImages: () -> Unit,
+    onOpenVideos: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val repository = remember { StatusRepository(context) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Status Saver") },
-                actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
+    var imageCount by remember { mutableStateOf(0) }
+    var videoCount by remember { mutableStateOf(0) }
+    var isLoading by remember { mutableStateOf(true) }
+    var refreshTrigger by remember { mutableStateOf(0) }
+
+    LaunchedEffect(refreshTrigger) {
+        isLoading = true
+        val (imgs, vids) = withContext(Dispatchers.IO) {
+            val images = repository.getImages().size
+            val videos = repository.getVideos().size
+            images to videos
         }
-    ) { padding ->
+        imageCount = imgs
+        videoCount = vids
+        isLoading = false
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(horizontal = 16.dp)
         ) {
-            if (!state.hasPermission) {
-                EmptyState(
-                    title = "Storage Permission Needed",
-                    subtitle = "Allow access so we can find WhatsApp statuses on your device.",
-                    buttonText = "Allow Access",
-                    onButtonClick = onRequestPermission
-                )
-                return@Column
-            }
+            Spacer(Modifier.height(24.dp))
 
-            TabRow(
-                selectedTabIndex = state.selectedTab,
-                containerColor = MaterialTheme.colorScheme.background
+            // Top bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Tab(
-                    selected = state.selectedTab == 0,
-                    onClick = { viewModel.selectTab(0) },
-                    text = { Text("Images (${state.images.size})") }
+                Text(
+                    text = "Status Saver",
+                    color = TextPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
-                Tab(
-                    selected = state.selectedTab == 1,
-                    onClick = { viewModel.selectTab(1) },
-                    text = { Text("Videos (${state.videos.size})") }
-                )
-            }
 
-            Box(modifier = Modifier.fillMaxSize()) {
-                when {
-                    state.isLoading -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    state.selectedTab == 0 && state.images.isEmpty() -> {
-                        EmptyState(
-                            title = "No Images Found",
-                            subtitle = "View some photo statuses in WhatsApp, then pull to refresh.",
-                            buttonText = "Refresh",
-                            onButtonClick = { viewModel.refresh() }
-                        )
-                    }
-                    state.selectedTab == 1 && state.videos.isEmpty() -> {
-                        EmptyState(
-                            title = "No Videos Found",
-                            subtitle = "View some video statuses in WhatsApp, then pull to refresh.",
-                            buttonText = "Refresh",
-                            onButtonClick = { viewModel.refresh() }
-                        )
-                    }
-                    else -> {
-                        val items = if (state.selectedTab == 0) state.images else state.videos
-                        StatusGrid(
-                            items = items,
-                            onItemClick = onMediaClick
-                        )
-                    }
+                Row {
+                    IconCircleButton(
+                        icon = Icons.Outlined.Refresh,
+                        onClick = { refreshTrigger++ }
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    IconCircleButton(
+                        icon = Icons.Outlined.Settings,
+                        onClick = onOpenSettings
+                    )
                 }
             }
+
+            Spacer(Modifier.height(24.dp))
+
+            // 2-column tiles
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                HomeTile(
+                    title = "Images",
+                    count = imageCount,
+                    icon = Icons.Outlined.Image,
+                    onClick = onOpenImages,
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(0.85f)
+                )
+                HomeTile(
+                    title = "Videos",
+                    count = videoCount,
+                    icon = Icons.Outlined.VideoLibrary,
+                    onClick = onOpenVideos,
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(0.85f)
+                )
+            }
+        }
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Background.copy(alpha = 0.75f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = PrimaryButton)
+            }
+        }
+    }
+}
+
+@Composable
+private fun IconCircleButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = Surface,
+        shape = RoundedCornerShape(999.dp),
+        modifier = Modifier
+            .size(40.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = TextPrimary,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
