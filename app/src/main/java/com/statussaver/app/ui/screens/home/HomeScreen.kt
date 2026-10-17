@@ -2,18 +2,20 @@ package com.statussaver.app.ui.screens.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Image
@@ -59,6 +61,7 @@ fun HomeScreen(
     var isLoading by remember { mutableStateOf(true) }
     var refreshTrigger by remember { mutableStateOf(0) }
 
+    // This LaunchedEffect will trigger every time the screen is composed or refreshTrigger changes
     LaunchedEffect(refreshTrigger) {
         isLoading = true
         val (imgs, vids) = withContext(Dispatchers.IO) {
@@ -75,13 +78,14 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
+            .windowInsetsPadding(WindowInsets.systemBars) // Fix for Safe Area
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
         ) {
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
 
             // Top bar
             Row(
@@ -92,7 +96,7 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Status Saver",
+                    text = "WAE", // Fixed Name
                     color = TextPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold
@@ -162,11 +166,7 @@ private fun IconCircleButton(
         shape = RoundedCornerShape(999.dp),
         modifier = Modifier
             .size(40.dp)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
-            )
+            .clickable { onClick() }
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
