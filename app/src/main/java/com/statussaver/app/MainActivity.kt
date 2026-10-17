@@ -19,8 +19,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        Prefs.setAutoSaveEnabled(this, true)
-
         if (PermissionUtils.hasStoragePermission(this)) {
             AutoSaveService.start(this)
         }
@@ -40,7 +38,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (PermissionUtils.hasStoragePermission(this)) {
+        if (PermissionUtils.hasStoragePermission(this) && Prefs.isAutoSaveEnabled(this)) {
             AutoSaveService.startSafely(this)
         }
     }
