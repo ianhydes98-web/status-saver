@@ -5,16 +5,18 @@ import android.widget.Toast
 import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -66,6 +68,7 @@ fun PreviewScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
+            .windowInsetsPadding(WindowInsets.systemBars) // Fix for Safe Area
     ) {
         // Media content
         if (media.isImage) {
@@ -94,11 +97,7 @@ fun PreviewScreen(
             modifier = Modifier
                 .padding(16.dp)
                 .size(40.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onBack
-                )
+                .clickable { onBack() }
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
@@ -125,11 +124,7 @@ fun PreviewScreen(
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { showDeleteDialog = true }
-                    )
+                    .clickable { showDeleteDialog = true }
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
@@ -159,24 +154,19 @@ fun PreviewScreen(
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        enabled = !isSaving,
-                        onClick = {
-                            if (isSaving) return@clickable
-                            isSaving = true
-                            scope.launch {
-                                val result = repository.saveToGallery(media)
-                                isSaving = false
-                                if (result.isSuccess) {
-                                    Toast.makeText(context, "Saved to gallery", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Failed to save", Toast.LENGTH_SHORT).show()
-                                }
+                    .clickable(enabled = !isSaving) {
+                        if (isSaving) return@clickable
+                        isSaving = true
+                        scope.launch {
+                            val result = repository.saveToGallery(media)
+                            isSaving = false
+                            if (result.isSuccess) {
+                                Toast.makeText(context, "Saved to gallery", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Failed to save", Toast.LENGTH_SHORT).show()
                             }
                         }
-                    )
+                    }
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
