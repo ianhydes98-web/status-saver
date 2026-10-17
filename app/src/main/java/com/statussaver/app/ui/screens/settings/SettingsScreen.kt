@@ -2,7 +2,6 @@ package com.statussaver.app.ui.screens.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,7 +39,6 @@ import com.statussaver.app.data.repository.StatusRepository
 import com.statussaver.app.service.AutoSaveService
 import com.statussaver.app.ui.theme.Background
 import com.statussaver.app.ui.theme.PrimaryButton
-import com.statussaver.app.ui.theme.PrimaryButtonText
 import com.statussaver.app.ui.theme.Surface
 import com.statussaver.app.ui.theme.SurfaceRaised
 import com.statussaver.app.ui.theme.TextPrimary
@@ -63,7 +61,6 @@ fun SettingsScreen(onBack: () -> Unit) {
     ) {
         Spacer(Modifier.height(24.dp))
 
-        // Top bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -75,11 +72,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 shape = RoundedCornerShape(999.dp),
                 modifier = Modifier
                     .size(40.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onBack
-                    )
+                    .clickable { onBack() }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -101,7 +94,6 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(16.dp))
 
-        // Section label
         Text(
             text = "GENERAL",
             color = TextSecondary,
@@ -111,7 +103,6 @@ fun SettingsScreen(onBack: () -> Unit) {
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
         )
 
-        // Auto-save row
         SettingsRow(
             icon = Icons.Outlined.Bolt,
             title = "Auto-save",
@@ -134,7 +125,6 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(8.dp))
 
-        // Clear cache row
         SettingsRow(
             icon = Icons.Outlined.DeleteSweep,
             title = "Clear App Cache",
@@ -155,7 +145,6 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(24.dp))
 
-        // Section label
         Text(
             text = "INFO",
             color = TextSecondary,
@@ -165,7 +154,6 @@ fun SettingsScreen(onBack: () -> Unit) {
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
         )
 
-        // App version row
         SettingsRow(
             icon = Icons.Outlined.Bolt,
             title = "App Version",
@@ -190,21 +178,15 @@ private fun SettingsRow(
     trailing: @Composable () -> Unit = {},
     onClick: (() -> Unit)? = null
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
+    var modifier = Modifier.fillMaxWidth()
+    if (onClick != null) {
+        modifier = modifier.clickable { onClick() }
+    }
+
     Surface(
         color = Surface,
         shape = RoundedCornerShape(18.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (onClick != null) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onClick
-                    )
-                } else Modifier
-            )
+        modifier = modifier
     ) {
         Row(
             modifier = Modifier
@@ -258,11 +240,7 @@ private fun SwitchPill(
         modifier = Modifier
             .width(48.dp)
             .height(28.dp)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = { onToggle(!checked) }
-            )
+            .clickable { onToggle(!checked) }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
