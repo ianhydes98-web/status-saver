@@ -105,7 +105,6 @@ fun GridScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // Top bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -163,7 +162,6 @@ fun GridScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            // Content
             Box(modifier = Modifier.weight(1f)) {
                 when {
                     isLoading -> {
@@ -204,7 +202,6 @@ fun GridScreen(
                 }
             }
 
-            // Bottom action bar
             if (selectionMode) {
                 Row(
                     modifier = Modifier
@@ -276,7 +273,7 @@ private fun IconCircleButton(
         shape = RoundedCornerShape(999.dp),
         modifier = Modifier
             .size(40.dp)
-            .clickable(onClick = onClick)
+            .clickable { onClick() }
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
@@ -303,7 +300,7 @@ private fun ActionButton(
         shape = RoundedCornerShape(18.dp),
         modifier = modifier
             .height(56.dp)
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = enabled) { onClick() }
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
