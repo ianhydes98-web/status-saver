@@ -52,6 +52,7 @@ class AutoSaveService : Service() {
             val observer = object : FileObserver(dir.absolutePath, CREATE or MOVED_TO or CLOSE_WRITE) {
                 override fun onEvent(event: Int, path: String?) {
                     if (path == null) return
+                    if (!Prefs.isAutoSaveEnabled(this@AutoSaveService)) return
                     val file = File(dir, path)
                     if (!file.isFile || file.length() == 0L) return
 
@@ -143,6 +144,7 @@ class AutoSaveService : Service() {
         private var isRunning = false
 
         fun start(context: android.content.Context) {
+            if (!Prefs.isAutoSaveEnabled(context)) return
             val intent = Intent(context, AutoSaveService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
