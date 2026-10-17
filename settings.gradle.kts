@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "StatusSaver"
+rootProject.name = "WAE"
 include(":app")
