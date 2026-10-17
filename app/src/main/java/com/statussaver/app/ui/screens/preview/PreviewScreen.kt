@@ -1,9 +1,14 @@
 package com.statussaver.app.ui.screens.preview
 
+import android.net.Uri
 import android.widget.Toast
+import android.widget.VideoView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,19 +17,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,14 +36,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import android.widget.VideoView
-import android.net.Uri
 import coil.compose.AsyncImage
 import com.statussaver.app.data.model.StatusMedia
 import com.statussaver.app.data.repository.StatusRepository
+import com.statussaver.app.ui.components.DeleteDialog
+import com.statussaver.app.ui.theme.Background
+import com.statussaver.app.ui.theme.PrimaryButton
+import com.statussaver.app.ui.theme.PrimaryButtonText
+import com.statussaver.app.ui.theme.SurfaceRaised
+import com.statussaver.app.ui.theme.TextPrimary
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PreviewScreen(
     media: StatusMedia,
@@ -55,98 +58,174 @@ fun PreviewScreen(
     val scope = rememberCoroutineScope()
     val repository = remember { StatusRepository(context) }
     var isSaving by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Preview") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+    ) {
+        // Media content
+        if (media.isImage) {
+            AsyncImage(
+                model = media.file,
+                contentDescription = media.name,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            AndroidView(
+                factory = { ctx ->
+                    VideoView(ctx).apply {
+                        setVideoURI(Uri.fromFile(media.file))
+                        setOnPreparedListener { it.isLooping = true; start() }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Black.copy(alpha = 0.6f)
-                )
+                modifier = Modifier.fillMaxSize()
             )
-        },
-        containerColor = Color.Black
-    ) { padding ->
-        Box(
+        }
+
+        // Back button
+        Surface(
+            color = SurfaceRaised.copy(alpha = 0.7f),
+            shape = RoundedCornerShape(999.dp),
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Media content
-            if (media.isImage) {
-                AsyncImage(
-                    model = media.file,
-                    contentDescription = media.name,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize()
+                .padding(16.dp)
+                .size(40.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onBack
                 )
-            } else {
-                // Simple native VideoView for maximum reliability & zero extra weight
-                AndroidView(
-                    factory = { ctx ->
-                        VideoView(ctx).apply {
-                            setVideoURI(Uri.fromFile(media.file))
-                            setOnPreparedListener { it.isLooping = true; start() }
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Back",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(18.dp)
                 )
             }
+        }
 
-            // Bottom Save button
-            Column(
+        // Bottom action bar
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Delete button
+            Surface(
+                color = SurfaceRaised.copy(alpha = 0.85f),
+                shape = RoundedCornerShape(18.dp),
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.55f))
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .weight(1f)
+                    .height(56.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { showDeleteDialog = true }
+                    )
             ) {
-                Button(
-                    onClick = {
-                        if (isSaving) return@Button
-                        isSaving = true
-                        scope.launch {
-                            val result = repository.saveToGallery(media)
-                            isSaving = false
-                            if (result.isSuccess) {
-                                Toast.makeText(context, "Saved to gallery", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "Failed to save", Toast.LENGTH_SHORT).show()
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = null,
+                        tint = TextPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    androidx.compose.material3.Text(
+                        text = "Delete",
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                    )
+                }
+            }
+
+            // Save button
+            Surface(
+                color = PrimaryButton,
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = !isSaving,
+                        onClick = {
+                            if (isSaving) return@clickable
+                            isSaving = true
+                            scope.launch {
+                                val result = repository.saveToGallery(media)
+                                isSaving = false
+                                if (result.isSuccess) {
+                                    Toast.makeText(context, "Saved to gallery", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to save", Toast.LENGTH_SHORT).show()
+                                }
                             }
                         }
-                    },
-                    enabled = !isSaving,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
                     )
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     if (isSaving) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            color = Color.Black,
-                            strokeWidth = 2.dp
+                            color = PrimaryButtonText,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(20.dp)
                         )
                     } else {
                         Icon(
-                            Icons.Default.Download,
+                            imageVector = Icons.Outlined.Download,
                             contentDescription = null,
-                            modifier = Modifier.size(20.dp)
+                            tint = PrimaryButtonText,
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text("Save to Gallery")
+                        Spacer(Modifier.size(8.dp))
+                        androidx.compose.material3.Text(
+                            text = "Save",
+                            color = PrimaryButtonText,
+                            fontSize = 14.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                        )
                     }
                 }
             }
+        }
+
+        if (showDeleteDialog) {
+            DeleteDialog(
+                itemCount = 1,
+                onRemoveFromApp = {
+                    repository.hideFromApp(media.path)
+                    showDeleteDialog = false
+                    onBack()
+                },
+                onDeleteFromGallery = {
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            repository.deleteFromGallery(media)
+                            repository.hideFromApp(media.path)
+                        }
+                        showDeleteDialog = false
+                        onBack()
+                    }
+                },
+                onCancel = { showDeleteDialog = false }
+            )
         }
     }
 }
