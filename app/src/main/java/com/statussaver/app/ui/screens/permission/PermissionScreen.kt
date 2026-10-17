@@ -1,6 +1,7 @@
 package com.statussaver.app.ui.screens.permission
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,7 +53,6 @@ fun PermissionScreen(
     val context = LocalContext.current
     var checkTrigger by remember { mutableStateOf(0) }
 
-    // Poll permission every second. When granted, navigate automatically.
     LaunchedEffect(checkTrigger) {
         while (true) {
             if (PermissionUtils.hasStoragePermission(context)) {
@@ -71,7 +71,6 @@ fun PermissionScreen(
     ) {
         Spacer(Modifier.height(80.dp))
 
-        // Big headline
         Text(
             text = "Save every status. Quietly.",
             color = TextPrimary,
@@ -124,8 +123,8 @@ fun PermissionScreen(
                 color = TextSecondary,
                 fontSize = 14.sp,
                 modifier = Modifier
+                    .clickable { onExit() }
                     .padding(8.dp)
-                    .clickableNoRipple { onExit() }
             )
 
             Surface(
@@ -133,7 +132,7 @@ fun PermissionScreen(
                 shape = RoundedCornerShape(999.dp),
                 modifier = Modifier
                     .height(48.dp)
-                    .clickableNoRipple {
+                    .clickable {
                         onGrant()
                         checkTrigger++
                     }
@@ -213,18 +212,4 @@ private fun FeatureCard(
             }
         }
     }
-}
-
-// Utility to remove ripple/default indication for a cleaner look
-@Composable
-private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier {
-    return this.then(
-        androidx.compose.foundation.clickable(
-            interactionSource = androidx.compose.runtime.remember {
-                androidx.compose.foundation.interaction.MutableInteractionSource()
-            },
-            indication = null,
-            onClick = onClick
-        )
-    )
 }
