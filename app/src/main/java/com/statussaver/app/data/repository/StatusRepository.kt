@@ -3,7 +3,6 @@ package com.statussaver.app.data.repository
 import android.content.Context
 import android.media.MediaScannerConnection
 import android.os.Environment
-import com.statussaver.app.data.local.BlacklistStore
 import com.statussaver.app.data.model.StatusMedia
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -26,7 +25,6 @@ class StatusRepository(private val context: Context) {
         )
     }
 
-    // The folder where we save the files
     fun getGalleryDir(): File {
         val pictures = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
         val dir = File(pictures, "Status Update")
@@ -35,19 +33,13 @@ class StatusRepository(private val context: Context) {
     }
 
     suspend fun getAllStatuses(): List<StatusMedia> = withContext(Dispatchers.IO) {
-        val blacklist = BlacklistStore.getAll(context)
         val results = mutableListOf<StatusMedia>()
 
         for (dir in possibleStatusDirs) {
             if (!dir.exists() || !dir.isDirectory || !dir.canRead()) continue
 
             dir.listFiles()?.forEach { file ->
-                // Skip hidden temp files and empty files
                 if (file.name.startsWith(".") || !file.isFile || file.length() < 100) return@forEach
-                
-                // If we've hidden it, skip it
-                if (file.absolutePath in blacklist) return@forEach
-
                 StatusMedia.fromFile(file)?.let { results.add(it) }
             }
         }
@@ -58,21 +50,14 @@ class StatusRepository(private val context: Context) {
     suspend fun getImages(): List<StatusMedia> = getAllStatuses().filter { it.isImage }
     suspend fun getVideos(): List<StatusMedia> = getAllStatuses().filter { it.isVideo }
 
-    /**
-     * Generates a unique hash based on the file content. 
-     * This prevents saving the same status twice, even if WhatsApp reuses the filename.
-     */
-    private fun generateHash(file: File): String {
+    private fun getFileHash(file: File): String {
         return try {
             val digest = MessageDigest.getInstance("SHA-256")
             FileInputStream(file).use { fis ->
                 val buffer = ByteArray(8192)
                 var bytesRead: Int
-                // Read first 64KB to generate hash quickly
-                var totalRead = 0
-                while (fis.read(buffer).also { bytesRead = it } != -1 && totalRead < 65536) {
+                while (fis.read(buffer).also { bytesRead = it } != -1) {
                     digest.update(buffer, 0, bytesRead)
-                    totalRead += bytesRead
                 }
             }
             digest.digest().joinToString("") { "%02x".format(it) }
@@ -81,44 +66,34 @@ class StatusRepository(private val context: Context) {
         }
     }
 
-    // Direct File Copy - highly reliable
     suspend fun saveToGallery(media: StatusMedia): Result<File> = withContext(Dispatchers.IO) {
         try {
             val galleryDir = getGalleryDir()
-            val newHash = generateHash(media.file)
+            val newFileHash = getFileHash(media.file)
             
-            // Check if we already have a file with the exact same content
+            // Check if exact same content already exists
             val existingFiles = galleryDir.listFiles() ?: emptyArray()
             for (existing in existingFiles) {
                 if (existing.isFile && existing.length() == media.file.length()) {
-                    if (generateHash(existing) == newHash) {
-                        // File already exists, do nothing
+                    if (getFileHash(existing) == newFileHash) {
                         return@withContext Result.success(existing)
                     }
                 }
             }
 
-            // Create unique filename with timestamp
+            // Unique name
             val timestamp = System.currentTimeMillis()
             val extension = media.name.substringAfterLast('.', "jpg")
-            val newName = "WAE_${timestamp}.${extension}"
-            val targetFile = File(galleryDir, newName)
+            val uniqueName = "WAE_${timestamp}.${extension}"
+            val targetFile = File(galleryDir, uniqueName)
 
-            // Copy file
             FileInputStream(media.file).use { input ->
                 FileOutputStream(targetFile).use { output ->
                     input.copyTo(output, bufferSize = 8192)
                 }
             }
 
-            // Notify Android Gallery to scan the new file
-            MediaScannerConnection.scanFile(
-                context,
-                arrayOf(targetFile.absolutePath),
-                null,
-                null
-            )
-
+            MediaScannerConnection.scanFile(context, arrayOf(targetFile.absolutePath), null, null)
             Result.success(targetFile)
         } catch (e: Exception) {
             Result.failure(e)
@@ -127,12 +102,11 @@ class StatusRepository(private val context: Context) {
 
     suspend fun deleteFromGallery(media: StatusMedia): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            // Since we renamed files with WAE_timestamp, we need to find them by content hash or size
             val galleryDir = getGalleryDir()
-            val targetHash = generateHash(media.file)
+            val targetHash = getFileHash(media.file)
             
             galleryDir.listFiles()?.forEach { file ->
-                if (file.isFile && file.length() == media.file.length() && generateHash(file) == targetHash) {
+                if (file.isFile && file.length() == media.file.length() && getFileHash(file) == targetHash) {
                     file.delete()
                 }
             }
@@ -140,14 +114,6 @@ class StatusRepository(private val context: Context) {
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
-
-    fun hideFromApp(path: String) {
-        BlacklistStore.add(context, path)
-    }
-
-    fun hideAllFromApp(paths: Collection<String>) {
-        BlacklistStore.addAll(context, paths)
     }
 
     fun clearAppCache(): Long {
