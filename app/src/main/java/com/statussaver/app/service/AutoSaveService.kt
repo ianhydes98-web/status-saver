@@ -38,30 +38,26 @@ class AutoSaveService : Service() {
 
         startForeground(NOTIFICATION_ID, createNotification())
         startWatching()
-
         return START_STICKY
     }
 
     private fun startWatching() {
         stopWatching()
-
         val dirs = getStatusDirectories()
         for (dir in dirs) {
             if (!dir.exists()) continue
 
-            val observer = object : FileObserver(dir.absolutePath, CREATE or MOVED_TO or CLOSE_WRITE) {
+            val observer = object : FileObserver(dir.absolutePath, CREATE or MOVED_TO) {
                 override fun onEvent(event: Int, path: String?) {
                     if (path == null) return
                     if (!Prefs.isAutoSaveEnabled(this@AutoSaveService)) return
                     val file = File(dir, path)
                     
-                    // Ignore tiny files or hidden temp files
                     if (file.name.startsWith(".") || !file.isFile || file.length() < 100) return
 
                     serviceScope.launch {
                         try {
-                            // Reduced delay to catch fast images
-                            Thread.sleep(200) 
+                            Thread.sleep(100) 
                             if (file.exists() && file.length() > 100) {
                                 val media = StatusMedia.fromFile(file) ?: return@launch
                                 val result = repository.saveToGallery(media)
@@ -95,10 +91,8 @@ class AutoSaveService : Service() {
 
     private fun createNotification(contentText: String = "Watching for new statuses…"): Notification {
         createChannel()
-
         val pendingIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java),
+            this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -110,7 +104,6 @@ class AutoSaveService : Service() {
             .setOngoing(true)
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
     }
 
@@ -121,14 +114,7 @@ class AutoSaveService : Service() {
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Auto Save",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Shows when auto-saving WhatsApp statuses"
-                setShowBadge(false)
-            }
+            val channel = NotificationChannel(CHANNEL_ID, "Auto Save", NotificationManager.IMPORTANCE_LOW)
             val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             nm.createNotificationChannel(channel)
         }
@@ -143,7 +129,6 @@ class AutoSaveService : Service() {
     companion object {
         private const val CHANNEL_ID = "auto_save_channel"
         private const val NOTIFICATION_ID = 1001
-
         private var isRunning = false
 
         fun start(context: android.content.Context) {
@@ -159,9 +144,7 @@ class AutoSaveService : Service() {
 
         fun startSafely(context: android.content.Context) {
             if (isRunning) return
-            try {
-                start(context)
-            } catch (_: Exception) { }
+            try { start(context) } catch (_: Exception) { }
         }
 
         fun stop(context: android.content.Context) {
