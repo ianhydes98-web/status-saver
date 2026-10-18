@@ -29,35 +29,24 @@ object Routes {
 }
 
 @Composable
-fun AppNavigation(onRequestPermission: () -> Unit) {
+fun AppNavigation() {
     val context = LocalContext.current
     val navController = rememberNavController()
-
-    // We use a state variable to force recomposition of the NavHost start destination
     var hasPermission by remember { mutableStateOf(PermissionUtils.hasStoragePermission(context)) }
-    
-    // Check permission status whenever the AppNavigation recomposes
     hasPermission = PermissionUtils.hasStoragePermission(context)
-    
     val startRoute = if (hasPermission) Routes.HOME else Routes.PERMISSION
 
     NavHost(navController = navController, startDestination = startRoute) {
-
         composable(Routes.PERMISSION) {
             PermissionScreen(
-                onGrant = onRequestPermission,
-                onExit = {
-                    (context as? android.app.Activity)?.finish()
-                },
+                onExit = { (context as? android.app.Activity)?.finish() },
                 onPermissionGranted = {
-                    // Navigate to Home and clear the back stack
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.PERMISSION) { inclusive = true }
                     }
                 }
             )
         }
-
         composable(Routes.HOME) {
             HomeScreen(
                 onOpenImages = { navController.navigate(Routes.GRID_IMAGES) },
@@ -65,14 +54,9 @@ fun AppNavigation(onRequestPermission: () -> Unit) {
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) }
             )
         }
-
-        composable(
-            route = "${Routes.GRID_IMAGES}?type={type}",
-            arguments = listOf(navArgument("type") { type = NavType.StringType; defaultValue = "images" })
-        ) { backStackEntry ->
-            val type = backStackEntry.arguments?.getString("type") ?: "images"
+        composable(Routes.GRID_IMAGES) {
             GridScreen(
-                mediaType = type,
+                mediaType = "images",
                 onBack = { navController.popBackStack() },
                 onOpenPreview = { media ->
                     PendingMedia.current = media
@@ -80,7 +64,6 @@ fun AppNavigation(onRequestPermission: () -> Unit) {
                 }
             )
         }
-
         composable(Routes.GRID_VIDEOS) {
             GridScreen(
                 mediaType = "videos",
@@ -91,7 +74,6 @@ fun AppNavigation(onRequestPermission: () -> Unit) {
                 }
             )
         }
-
         composable(Routes.PREVIEW) {
             val media = PendingMedia.current
             if (media != null) {
@@ -101,13 +83,9 @@ fun AppNavigation(onRequestPermission: () -> Unit) {
                 )
             }
         }
-
         composable(Routes.SETTINGS) {
             SettingsScreen(onBack = { navController.popBackStack() })
         }
     }
 }
-
-object PendingMedia {
-    var current: StatusMedia? = null
-}
+object PendingMedia { var current: StatusMedia? = null }
