@@ -11,7 +11,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.statussaver.app.data.model.StatusMedia
-import com.statussaver.app.data.repository.StatusRepository
 import com.statussaver.app.ui.screens.grid.GridScreen
 import com.statussaver.app.ui.screens.home.HomeScreen
 import com.statussaver.app.ui.screens.permission.PermissionScreen
@@ -34,7 +33,12 @@ fun AppNavigation(onRequestPermission: () -> Unit) {
     val context = LocalContext.current
     val navController = rememberNavController()
 
-    val hasPermission = PermissionUtils.hasStoragePermission(context)
+    // We use a state variable to force recomposition of the NavHost start destination
+    var hasPermission by remember { mutableStateOf(PermissionUtils.hasStoragePermission(context)) }
+    
+    // Check permission status whenever the AppNavigation recomposes
+    hasPermission = PermissionUtils.hasStoragePermission(context)
+    
     val startRoute = if (hasPermission) Routes.HOME else Routes.PERMISSION
 
     NavHost(navController = navController, startDestination = startRoute) {
@@ -46,6 +50,7 @@ fun AppNavigation(onRequestPermission: () -> Unit) {
                     (context as? android.app.Activity)?.finish()
                 },
                 onPermissionGranted = {
+                    // Navigate to Home and clear the back stack
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.PERMISSION) { inclusive = true }
                     }
@@ -103,10 +108,6 @@ fun AppNavigation(onRequestPermission: () -> Unit) {
     }
 }
 
-/**
- * Simple holder for the media being previewed.
- * Used to pass a StatusMedia object to the preview route.
- */
 object PendingMedia {
     var current: StatusMedia? = null
 }
