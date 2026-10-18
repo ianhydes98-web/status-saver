@@ -1,20 +1,11 @@
 package com.statussaver.app.ui.screens.permission
 
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
@@ -26,10 +17,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -37,34 +24,33 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.statussaver.app.ui.theme.Background
-import com.statussaver.app.ui.theme.PrimaryButton
-import com.statussaver.app.ui.theme.PrimaryButtonText
-import com.statussaver.app.ui.theme.Surface
-import com.statussaver.app.ui.theme.SurfaceRaised
-import com.statussaver.app.ui.theme.TextPrimary
-import com.statussaver.app.ui.theme.TextSecondary
+import com.statussaver.app.ui.theme.*
 import com.statussaver.app.util.PermissionUtils
 import kotlinx.coroutines.delay
 
 @Composable
 fun PermissionScreen(
-    onGrant: () -> Unit,
     onExit: () -> Unit,
     onPermissionGranted: () -> Unit
 ) {
     val context = LocalContext.current
-    var checkTrigger by remember { mutableStateOf(0) }
+    val activity = context as? android.app.Activity
 
-    // This loop runs constantly. When the user returns from settings, 
-    // it checks if the permission was granted and auto-redirects.
-    LaunchedEffect(checkTrigger) {
+    val settingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (PermissionUtils.hasStoragePermission(context)) {
+            onPermissionGranted()
+        }
+    }
+
+    LaunchedEffect(Unit) {
         while (true) {
             if (PermissionUtils.hasStoragePermission(context)) {
                 onPermissionGranted()
                 break
             }
-            delay(500) // Check every half second
+            delay(300)
         }
     }
 
@@ -72,99 +58,46 @@ fun PermissionScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
-            .windowInsetsPadding(WindowInsets.systemBars) // Fix for Safe Area
+            .windowInsetsPadding(WindowInsets.systemBars)
             .padding(horizontal = 20.dp)
     ) {
         Spacer(Modifier.height(40.dp))
-
-        Text(
-            text = "Save every status. Quietly.",
-            color = TextPrimary,
-            fontSize = 36.sp,
-            fontWeight = FontWeight.SemiBold,
-            lineHeight = 38.sp,
-            letterSpacing = (-0.035).sp
-        )
-
+        Text("Save every status. Quietly.", color = TextPrimary, fontSize = 36.sp, fontWeight = FontWeight.SemiBold, lineHeight = 38.sp, letterSpacing = (-0.035).sp)
         Spacer(Modifier.height(16.dp))
-
-        Text(
-            text = "WAE needs access to your files to find WhatsApp statuses.", // Changed to WAE
-            color = TextSecondary,
-            fontSize = 14.sp,
-            lineHeight = 22.sp
-        )
-
+        Text("WAE needs access to your files to find WhatsApp statuses.", color = TextSecondary, fontSize = 14.sp, lineHeight = 22.sp)
         Spacer(Modifier.height(32.dp))
-
-        FeatureCard(
-            icon = Icons.Outlined.Folder,
-            title = "Access your files",
-            subtitle = "Read statuses stored on your device."
-        )
+        FeatureCard(Icons.Outlined.Folder, "Access your files", "Read statuses stored on your device.")
         Spacer(Modifier.height(10.dp))
-        FeatureCard(
-            icon = Icons.Outlined.Bolt,
-            title = "Auto-save new statuses",
-            subtitle = "Saved the moment they appear."
-        )
+        FeatureCard(Icons.Outlined.Bolt, "Auto-save new statuses", "Saved the moment they appear.")
         Spacer(Modifier.height(10.dp))
-        FeatureCard(
-            icon = Icons.Outlined.Shield,
-            title = "No data collection",
-            subtitle = "Everything stays on your phone."
-        )
-
+        FeatureCard(Icons.Outlined.Shield, "No data collection", "Everything stays on your phone.")
         Spacer(Modifier.weight(1f))
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 32.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = "Exit App",
-                color = TextSecondary,
-                fontSize = 14.sp,
-                modifier = Modifier
-                    .clickable { onExit() }
-                    .padding(8.dp)
-            )
-
+            Text("Exit App", color = TextSecondary, fontSize = 14.sp, modifier = Modifier.clickable { onExit() }.padding(8.dp))
             Surface(
                 color = PrimaryButton,
                 shape = RoundedCornerShape(999.dp),
-                modifier = Modifier
-                    .height(48.dp)
-                    .clickable {
-                        onGrant()
+                modifier = Modifier.height(48.dp).clickable {
+                    if (activity != null) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            val intent = PermissionUtils.getStoragePermissionIntent(activity)
+                            if (intent != null) settingsLauncher.launch(intent)
+                        } else {
+                            PermissionUtils.requestLegacyStoragePermission(activity)
+                        }
                     }
+                }
             ) {
-                Row(
-                    modifier = Modifier.padding(start = 20.dp, end = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Grant Permission",
-                        color = PrimaryButtonText,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                Row(modifier = Modifier.padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Grant Permission", color = PrimaryButtonText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.size(12.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(PrimaryButtonText, shape = RoundedCornerShape(999.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowForward,
-                            contentDescription = null,
-                            tint = PrimaryButton,
-                            modifier = Modifier.size(16.dp)
-                        )
+                    Box(modifier = Modifier.size(32.dp).background(PrimaryButtonText, shape = RoundedCornerShape(999.dp)), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.ArrowForward, null, tint = PrimaryButton, modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -173,47 +106,17 @@ fun PermissionScreen(
 }
 
 @Composable
-private fun FeatureCard(
-    icon: ImageVector,
-    title: String,
-    subtitle: String
-) {
-    Surface(
-        color = Surface,
-        shape = RoundedCornerShape(18.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(SurfaceRaised, shape = RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = TextPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
+private fun FeatureCard(icon: ImageVector, title: String, subtitle: String) {
+    Surface(color = Surface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(40.dp).background(SurfaceRaised, shape = RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = TextPrimary, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.size(14.dp))
             Column {
-                Text(
-                    text = title,
-                    color = TextPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Text(title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    color = TextSecondary,
-                    fontSize = 13.sp
-                )
+                Text(subtitle, color = TextSecondary, fontSize = 13.sp)
             }
         }
     }
