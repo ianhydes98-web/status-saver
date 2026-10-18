@@ -35,7 +35,6 @@ class StatusRepository(private val context: Context) {
     suspend fun getAllStatuses(): List<StatusMedia> = withContext(Dispatchers.IO) {
         val results = mutableListOf<StatusMedia>()
         
-        // 1. Get files from WhatsApp
         for (dir in possibleStatusDirs) {
             if (!dir.exists() || !dir.isDirectory || !dir.canRead()) continue
             dir.listFiles()?.forEach { file ->
@@ -44,7 +43,6 @@ class StatusRepository(private val context: Context) {
             }
         }
 
-        // 2. Get files from our Gallery folder (so if you delete from Gallery, it disappears here)
         getGalleryDir().listFiles()?.forEach { file ->
             if (file.name.startsWith(".") || !file.isFile || file.length() < 100) return@forEach
             StatusMedia.fromFile(file)?.let { results.add(it) }
@@ -77,17 +75,15 @@ class StatusRepository(private val context: Context) {
             val galleryDir = getGalleryDir()
             val newFileHash = getFileHash(media.file)
             
-            // Check if exact same content already exists in our gallery folder
             val existingFiles = galleryDir.listFiles() ?: emptyArray()
             for (existing in existingFiles) {
                 if (existing.isFile && existing.length() == media.file.length()) {
                     if (getFileHash(existing) == newFileHash) {
-                        return@withContext Result.success(existing) // Already saved, skip
+                        return@withContext Result.success(existing)
                     }
                 }
             }
 
-            // Unique name so it never overwrites
             val timestamp = System.currentTimeMillis()
             val extension = media.name.substringAfterLast('.', "jpg")
             val uniqueName = "WAE_${timestamp}.${extension}"
@@ -106,13 +102,18 @@ class StatusRepository(private val context: Context) {
         }
     }
 
-    // This deletes the file directly from the Gallery folder
+    // SAFE DELETE: Only deletes if the file is in the Gallery folder. Never touches WhatsApp folder.
     suspend fun deleteFromGallery(media: StatusMedia): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val fileToDelete = File(media.path)
-            if (fileToDelete.exists()) {
-                fileToDelete.delete()
+            val galleryDirPath = getGalleryDir().absolutePath
+            // If the file path is inside our "Status Update" folder, delete it.
+            if (media.path.contains(galleryDirPath)) {
+                val fileToDelete = File(media.path)
+                if (fileToDelete.exists()) {
+                    fileToDelete.delete()
+                }
             }
+            // If it's a WhatsApp file, we do nothing here. It just won't be in the gallery list.
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
