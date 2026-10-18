@@ -1,8 +1,6 @@
 package com.statussaver.app.ui.screens.permission
 
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,17 +14,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.statussaver.app.ui.theme.*
 import com.statussaver.app.util.PermissionUtils
-import kotlinx.coroutines.delay
 
 @Composable
 fun PermissionScreen(
@@ -34,24 +34,19 @@ fun PermissionScreen(
     onPermissionGranted: () -> Unit
 ) {
     val context = LocalContext.current
-    val activity = context as? android.app.Activity
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    val settingsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        if (PermissionUtils.hasStoragePermission(context)) {
-            onPermissionGranted()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            if (PermissionUtils.hasStoragePermission(context)) {
-                onPermissionGranted()
-                break
+    // THE FIX: The exact moment you return from settings, this fires and checks the permission
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (PermissionUtils.hasStoragePermission(context)) {
+                    onPermissionGranted()
+                }
             }
-            delay(300)
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Column(
@@ -83,10 +78,11 @@ fun PermissionScreen(
                 color = PrimaryButton,
                 shape = RoundedCornerShape(999.dp),
                 modifier = Modifier.height(48.dp).clickable {
+                    val activity = context as? android.app.Activity
                     if (activity != null) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                             val intent = PermissionUtils.getStoragePermissionIntent(activity)
-                            if (intent != null) settingsLauncher.launch(intent)
+                            if (intent != null) activity.startActivity(intent)
                         } else {
                             PermissionUtils.requestLegacyStoragePermission(activity)
                         }
