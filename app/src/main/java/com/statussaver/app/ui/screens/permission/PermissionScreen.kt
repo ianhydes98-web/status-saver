@@ -7,11 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
@@ -53,13 +56,15 @@ fun PermissionScreen(
     val context = LocalContext.current
     var checkTrigger by remember { mutableStateOf(0) }
 
+    // This loop runs constantly. When the user returns from settings, 
+    // it checks if the permission was granted and auto-redirects.
     LaunchedEffect(checkTrigger) {
         while (true) {
             if (PermissionUtils.hasStoragePermission(context)) {
                 onPermissionGranted()
                 break
             }
-            delay(1000)
+            delay(500) // Check every half second
         }
     }
 
@@ -67,9 +72,10 @@ fun PermissionScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
+            .windowInsetsPadding(WindowInsets.systemBars) // Fix for Safe Area
             .padding(horizontal = 20.dp)
     ) {
-        Spacer(Modifier.height(80.dp))
+        Spacer(Modifier.height(40.dp))
 
         Text(
             text = "Save every status. Quietly.",
@@ -83,7 +89,7 @@ fun PermissionScreen(
         Spacer(Modifier.height(16.dp))
 
         Text(
-            text = "Status Saver needs access to your files to find WhatsApp statuses.",
+            text = "WAE needs access to your files to find WhatsApp statuses.", // Changed to WAE
             color = TextSecondary,
             fontSize = 14.sp,
             lineHeight = 22.sp
@@ -134,7 +140,6 @@ fun PermissionScreen(
                     .height(48.dp)
                     .clickable {
                         onGrant()
-                        checkTrigger++
                     }
             ) {
                 Row(
