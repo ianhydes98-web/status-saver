@@ -25,23 +25,27 @@ object PermissionUtils {
         }
     }
 
-    fun requestStoragePermission(activity: Activity, requestCode: Int = 1001) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    // This is required by the new PermissionScreen
+    fun getStoragePermissionIntent(activity: Activity): Intent? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
                     data = Uri.parse("package:${activity.packageName}")
                 }
-                activity.startActivity(intent)
             } catch (e: Exception) {
-                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                activity.startActivity(intent)
+                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
             }
         } else {
-            ActivityCompat.requestPermissions(
-                activity,
-                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
-                requestCode
-            )
+            null
         }
+    }
+
+    // This is required by the new PermissionScreen for older phones
+    fun requestLegacyStoragePermission(activity: Activity, requestCode: Int = 1001) {
+        ActivityCompat.requestPermissions(
+            activity,
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
+            requestCode
+        )
     }
 }
