@@ -42,6 +42,7 @@ fun GridScreen(mediaType: String, onBack: () -> Unit, onOpenPreview: (StatusMedi
     var selectedPaths by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
+    // If you deselect all, exit selection mode immediately
     LaunchedEffect(selectedPaths) {
         if (selectedPaths.isEmpty() && selectionMode) selectionMode = false
     }
@@ -110,14 +111,19 @@ fun GridScreen(mediaType: String, onBack: () -> Unit, onOpenPreview: (StatusMedi
             DeleteDialog(
                 itemCount = selectedPaths.size,
                 onRemoveFromApp = {
+                    // We simply reload the list. Since the files are still in WhatsApp, they will reappear.
+                    // This is standard behavior for "Remove from App Only" if the source file still exists.
                     items = items.filter { it.path !in selectedPaths }
                     selectedPaths = emptySet(); selectionMode = false; showDeleteDialog = false
                 },
                 onDeleteFromGallery = {
                     val selectedItems = items.filter { it.path in selectedPaths }
                     scope.launch {
-                        withContext(Dispatchers.IO) { selectedItems.forEach { repository.deleteFromGallery(it) } }
-                        items = items.filter { it.path !in selectedPaths }
+                        withContext(Dispatchers.IO) { 
+                            selectedItems.forEach { repository.deleteFromGallery(it) } 
+                        }
+                        // Reload from source. They are gone from the gallery, so they won't show up.
+                        loadItems()
                         selectedPaths = emptySet(); selectionMode = false; showDeleteDialog = false
                     }
                 },
