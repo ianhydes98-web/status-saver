@@ -49,19 +49,18 @@ class AutoSaveService : Service() {
         for (dir in dirs) {
             if (!dir.exists()) continue
 
-            // Listen to CREATE, MOVED_TO, and CLOSE_WRITE (which triggers when WhatsApp finishes saving the image/video)
             val observer = object : FileObserver(dir.absolutePath, CREATE or MOVED_TO or CLOSE_WRITE) {
                 override fun onEvent(event: Int, path: String?) {
                     if (path == null) return
                     if (!Prefs.isAutoSaveEnabled(this@AutoSaveService)) return
                     val file = File(dir, path)
                     
-                    // Ignore hidden files and tiny temporary files
+                    // Ignore tiny files or hidden temp files
                     if (file.name.startsWith(".") || !file.isFile || file.length() < 100) return
 
                     serviceScope.launch {
                         try {
-                            // Reduced delay from 800ms to 200ms to catch images faster
+                            // Reduced delay to catch fast images
                             Thread.sleep(200) 
                             if (file.exists() && file.length() > 100) {
                                 val media = StatusMedia.fromFile(file) ?: return@launch
