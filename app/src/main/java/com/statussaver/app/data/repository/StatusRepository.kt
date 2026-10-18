@@ -34,14 +34,20 @@ class StatusRepository(private val context: Context) {
 
     suspend fun getAllStatuses(): List<StatusMedia> = withContext(Dispatchers.IO) {
         val results = mutableListOf<StatusMedia>()
-
+        
+        // 1. Get files from WhatsApp
         for (dir in possibleStatusDirs) {
             if (!dir.exists() || !dir.isDirectory || !dir.canRead()) continue
-
             dir.listFiles()?.forEach { file ->
                 if (file.name.startsWith(".") || !file.isFile || file.length() < 100) return@forEach
                 StatusMedia.fromFile(file)?.let { results.add(it) }
             }
+        }
+
+        // 2. Get files from our Gallery folder (so if you delete from Gallery, it disappears here)
+        getGalleryDir().listFiles()?.forEach { file ->
+            if (file.name.startsWith(".") || !file.isFile || file.length() < 100) return@forEach
+            StatusMedia.fromFile(file)?.let { results.add(it) }
         }
 
         results.distinctBy { it.path }.sortedByDescending { it.lastModified }
@@ -52,7 +58,7 @@ class StatusRepository(private val context: Context) {
 
     private fun getFileHash(file: File): String {
         return try {
-            val digest = MessageDigest.getInstance("SHA-256")
+            val digest = MessageDigest.getInstance("MD5")
             FileInputStream(file).use { fis ->
                 val buffer = ByteArray(8192)
                 var bytesRead: Int
@@ -71,17 +77,17 @@ class StatusRepository(private val context: Context) {
             val galleryDir = getGalleryDir()
             val newFileHash = getFileHash(media.file)
             
-            // Check if exact same content already exists
+            // Check if exact same content already exists in our gallery folder
             val existingFiles = galleryDir.listFiles() ?: emptyArray()
             for (existing in existingFiles) {
                 if (existing.isFile && existing.length() == media.file.length()) {
                     if (getFileHash(existing) == newFileHash) {
-                        return@withContext Result.success(existing)
+                        return@withContext Result.success(existing) // Already saved, skip
                     }
                 }
             }
 
-            // Unique name
+            // Unique name so it never overwrites
             val timestamp = System.currentTimeMillis()
             val extension = media.name.substringAfterLast('.', "jpg")
             val uniqueName = "WAE_${timestamp}.${extension}"
@@ -100,15 +106,12 @@ class StatusRepository(private val context: Context) {
         }
     }
 
+    // This deletes the file directly from the Gallery folder
     suspend fun deleteFromGallery(media: StatusMedia): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val galleryDir = getGalleryDir()
-            val targetHash = getFileHash(media.file)
-            
-            galleryDir.listFiles()?.forEach { file ->
-                if (file.isFile && file.length() == media.file.length() && getFileHash(file) == targetHash) {
-                    file.delete()
-                }
+            val fileToDelete = File(media.path)
+            if (fileToDelete.exists()) {
+                fileToDelete.delete()
             }
             Result.success(Unit)
         } catch (e: Exception) {
